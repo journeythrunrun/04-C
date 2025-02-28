@@ -83,7 +83,7 @@
     	enqueue(&q1, 20); queue_print(&q1);
     	enqueue(&q1, 30); queue_print(&q1);
     
-    	item = dequeue(&q1); queue_print(&q1); (3-2) 삭제 with (2-2)
+    	item = dequeue(&q1); queue_print(&q1); // (3-2) 삭제 with (2-2)
     	item = dequeue(&q1); queue_print(&q1);
     	item = dequeue(&q1); queue_print(&q1);
     
