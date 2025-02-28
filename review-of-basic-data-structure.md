@@ -94,8 +94,6 @@
 - (2) 원형 큐
   + 공백상태와 포화상태를 구별하기 위해 하나의 요소 공간은 항상 비워둔다. 
   + 포화상태 : front % M == (rear+1 )% M // front ~~ rear + 1 : 딱 저 위치 한 곳만 빈 거라 포화 상태임
-  
-	#~ 인덱스 0?
   + ```C
     #define _CRT_SECURE_NO_WARNINGS
     #include <stdio.h>
