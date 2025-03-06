@@ -12,7 +12,7 @@
     // 3. button 2 : shift_left_keeP_ledon
     // 4.		   : flower_on <->
     
-    // LCD 결선 : PORTB 4567(D1~D4)   PORTC 0~7(8개 다)
+    // 7segment 결선 : PORTB 4567(D1~D4)   PORTC 0~7(8개 다)
     
     #define F_CPU 16000000UL // Unsigned long 16MHz
     #include <avr/io.h> // PORTA PORTB 등의 IO관련 레지스터 등이 있다.
@@ -102,6 +102,7 @@
     			else flower_off();
     		}
     	}
+    return 0;
     }
     ```
 
