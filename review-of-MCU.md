@@ -6,12 +6,9 @@
 - LED, Button, FSM
   + main.c
     ```C
-    // 문제
-    // delay 50 ms 화 ( 버튼을 위해 )
-    // 1. Button 0 : led_all_on <-> _off
-    // 2. Button 1 : Shift_left_ledon <->
-    // 3. button 2 : shift_left_keeP_ledon
-    // 4.		   : flower_on <->
+    // - 분&초 시계[스톱워치]  FSM (버튼0으로 state 회전)
+    //   + state 0 : 초 단위에 뒤에서 두번째 dp를 1초에 1회씩 on/off || 1번버튼 누르면 카운팅리셋.
+    //   + state 1 : 초 시계 display ( 앞 두 segment가 회전하도록.  반시계, 시계)  || 1번버튼 누르면 회전시계((&카운팅)) 리셋.
     
     // 7segment 결선 : PORTB 4567(D1~D4)   PORTC 0~7(8개 다)
     
@@ -20,8 +17,7 @@
     #include <util/delay.h> // _delay_ms _delay_us
     
     #include "button.h" // button.c에서 include해놨지만, main 함수 내에서 관련된 게 쓰이면 여기서도 미리 include해야함
-    extern int led_main(void); // 외부 파일의 함수
-    
+    extern int led_main(void); // 외부 파일의 함수. 자동으로 extern이긴 해도 코드 파악이 좀 더 빠를 수 있지(or 경고 없애기)
     extern void led_all_on(void);
     extern void led_all_off(void);
     extern void shift_left_ledon(void);
@@ -31,33 +27,206 @@
     extern void flower_on(void);
     extern void flower_off(void);
     
-    extern void init_button(void);
+    extern void init_button(void); 
     extern int get_button(int button_num, int button_pin);
+    
+    // fnd.h를 include 안했는데 이것저것 잘되네 : 보통 헤더파일에서 저 함수 선언을 대신 해주곤 했던 거고, 주된 작동을 거의 fnd.c에서 해서 여기서는 딱히 그 파일이 쓰일 일 없었음. c파일 끼리 각각 컴파일 되고 링크돼서 거기에 맞게 있으면 여기에서 선언만 해줘도 사용할 수 있음
+    extern void init_fnd(void); 
+    extern void fnd_display(int, int); 
+    //extern int fnd_main(void);
+    
+    void led_state (int);
+    
+    #if 0 // 접기 가능.// 정수 OR 정수로 치환되는 매크로 상수 식
+    #else
+    #endif 
     
     // none OS 또는 loop monitor 방식
     int main(void) // VSC((일반 상황))와 다르게 반환형이 int여야함
     {	
-    	// DDR
-    	// 레지스터이기에 형식 선언 안 해도 됨. 양수 8bit
+        
+    	
+    	// - DDR [Data Direction Register] : 방향설정
+        // DDRA=0b11111111;  1(출력) 0(입력), 양수 8bit
+    	// 레지스터이기에 형식 선언 안 해도 됨. 
     	// 상위 nibble (4bits), 하위 nibble
-    	
-    	//led_main();
+        	
+    	//// led_main();
     	//// 아스키코드 0(0x30), space(0x20), A(0x41), a(0x61)
-    	//DDRA=0b11111111; //DDR(Data Direction Register) : 방향설정// 1(출력) 0(입력) //0b, 0x, //// 출력 모드
-    	//DDRD=0x00;
+    
+        // 초기화 (LED, 버튼) //// 안 쓰이는 곳도 있지만 여러 곳에서 쓰여서 아래 #if 안으로 각각 넣는거 패쓰
+    	DDRA=0b11111111; //-> PORTA=0b11111111; [0xff;] : All led on
+    	int button0_state=0; 
+    
+        init_button(); // DDRD 입력 설정
+        //// 여기부터 fnd_main(); 을 main 함수로 가져옴
+        init_fnd();
+        
+        //// init_button() ; 
+        //int * pstate; 나중에 하고 싶으면 포인터로 바꿔서 구현해보기.함수내 이중포인터도 (여거에서 포인터가 자주 쓰이는 게 아니니까 굳이 이 케이스로 포인터연습할 필요는 없는데, 그래도 MCU에서 테스트 해보는 느낌 해보고 싶으면 하기) 
+        int state=0;
+        //pstate= &state;
+    
+        uint32_t ms_count=0;  //unsigned integer
+        uint32_t sec_count=0;
+    
+        while(1)
+        {
+            if ( get_button(BUTTON0, BUTTON0PIN)){ // 보면 바로 함수 핵심 알고리즘 떠오를 정돈가?
+                ms_count=0;
+                sec_count=0;
+                state =! state; // != != =!
+            }
+            
+            if (get_button(BUTTON1, BUTTON1PIN)){ // 다른 구현에선 else if로 했지만 여기선 완전 독립적으로 해줌. 어차피 while로 처음으로 돌아갈 거라 뒤 조건 통과하게 될 때도 시간 등 큰 차이 안나겠지만 그래도. <-> else if 
+                ms_count=0;
+                sec_count=0;
+            }
+            
+            fnd_display(state, sec_count);
+            _delay_ms(1); // 1ms 마다 다음 자리수 digit 출력. 이거 관련은 .md 텍스트에 적었었음. 4자리수의 7segment이지만 1ms 마다 옆에 있는 걸로 옮겨서 출력해주면서 잔상효과로, 적은 핀의 수로 많은 segment 사용. ((참 효율적이라 마음의 박수))
+            
+            ms_count++; //// 굳이 여기 연산에서 분, 초, 1의자리, 10의자리 맞춰서 연산해놓기보다, 나중에 해당 값 필요할 때 이 total값으로 바로 연산함.
+            if (ms_count >=1000)
+            {
+                ms_count=0;
+                sec_count++;
+            }
+            // 1s delay 누적 + 출력 및 while문 내 나머지 코드  인데도 동작이 거의 초로 맞게 되는 거 보면, MCU여도 꽤나 빠르나봄
+        }
+        return 0;
+    }	
+    
+    #if 0 // (아래 문제에서) 함수 포인터 배열법 (스위치보다 좋음)  
+    // 다른 .c에 있는 함수들 다 extern해야하긴해도 잘 사용하는 방법인가봄
+    	void (*fp[])(void)= // 함수포인터 '배열' 이라서 main 안에서 하는 것도 자연스러움 //// []: 초기값 있어서 자동으로 배열의 길이 지정해줌 
+    	{   // 우선 순위 : []가 *보다 우세함.  근데 그냥 *fp[] 배열이다 암기.
+    		led_all_off,
+    		led_all_on,
+    		shift_left_ledon,
+    		shift_right_ledon,
+    		shift_left_keep_ledon,
+    		shift_right_keep_ledon,
+    		flower_on,
+    		flower_off
+    	}; // 함수 이름이 들어감
     	
-    	//while (1)
-    	//{ 
-    		//PORTA=0b11111111; //0xff; //// All on
-    		//_delay_ms(1000);
-    		//PORTA=0b00000000; // All off
-    		//_delay_ms(1000);
-    	//}
-    	
-    	init_button(); // DDRD 입력 설정
-    	DDRA=0b11111111;
-    	// FSM [Finite State machine] 
-    	int button0_state=0;
+    	while(1)
+    	{
+    		if (get_button(BUTTON0, BUTTON0PIN)){ //// state 값 설정
+    			button0_state = (button0_state+1)%8; 
+    		}
+    		fp[button0_state] (); // => 해당 요소에 있는 함수를 ();_실행
+    	}
+    	return 0;
+    }
+    #endif
+    
+    #if 0// 아래의 문제 + (1) 해당 모드에서 반복실행, (2) 버튼 한개로 FSM 
+    	while(1)
+    	{
+            //// FSM [Finite State machine] : 순차적.
+    		//// 리셋은 MCU의 버튼
+    		
+    		//// 인터럽트 없이 코드 짜보기
+    		// - 문제 상황 : 버튼입력을 딜레이 중에 받고있으면 안됨.
+    		//   + M1. led 단계 사이의 delay 낮추기, 쓸데없는 delay 없애기 ////교수님도 led작동의 delay 시간을 낮추셨네
+    		//   + M2. 디바운싱 함수 특성 상 꾹 누르고 있다가 떼면 더 잘됨. (사용한 디바운싱이 1존재-딜레이->0존재 카운팅이라, 1의 값이 확실히 전달되도록 주면 되기에.(led작동 중이었어도 쫌 길게 누르고 있으면 작동끝났을 때도 1 들어가게됨))
+    		
+    		////_delay_ms(200); // 하면 버튼 입력 못받고 있는 기간이 더 길어지고 더 느려짐. 
+            
+            //// FSM state 값 설정
+    		if ( get_button(BUTTON0, BUTTON0PIN)){
+    			button0_state = (button0_state+1)%8; // +1, 간격 내에서 순환을 위한 % //// 0이면 1, ..., 7면 0 
+    			//led_state(button0_state);// if 안에서 X: 버튼이 눌릴 때만 led기능 수행하게돼버림. 전에 버튼 입력이 잘 됐던 4개의 버튼을 이용한 코드는 해당 버튼이 눌리면 그 if문 안에서 했지만, 그건 '반복이 아니라서' delay와 함께 led작동이 돌아가고 있을 때 누를 일이 더 적었음.
+    		}
+            
+    		// M1.
+    		led_state(button0_state) ;
+            // else 문 안에서 할 시 : else 추가하면 if가 True일 때도 함수가 실행되던걸 못 실행하게 되는데, 어차피 while문으로 돌아서 이 else로 오게되긴 함. 근데 이론상으론 바로 되는 게 더 부합함
+        	
+    		// M2. 교수님은 아래와 같은switch로 하심. 단순 함수로 빼는 것보다 더 간단함.
+    		//switch(button0_state){
+    			//case 0: 
+    				//led_all_off();
+    				//break;
+    			//case 1: 
+    				//led_all_on();
+    				//break;
+    			//case 2:
+    				//shift_left_ledon();
+    				//break;
+    			//case 3:
+    				//shift_right_ledon();
+    				//break;
+    			//case 4:
+    				//shift_left_keep_ledon();
+    				//break;
+    			//case 5:
+    				//shift_right_keep_ledon();
+    				//break;
+    			//case 6:
+    				//flower_on();
+    				//break;
+    			//case 7:
+    				//flower_off();
+    				//break;
+    		//}
+    	} 
+        return 0;
+    }
+    
+    void led_state (int button0_state){
+        if ( button0_state==0 )
+        {
+            led_all_off();
+        }
+        
+        else if ( button0_state==1 )
+        {
+            led_all_on();
+        }
+        
+        else if ( button0_state==2 )
+        {
+            shift_left_ledon();
+        }
+        
+        else if ( button0_state==3 )
+        {
+            shift_right_ledon();
+        }
+        
+        else if ( button0_state==4 )
+        {
+            shift_left_keep_ledon();
+        }
+        
+        else if ( button0_state==5 )
+        {
+            shift_right_keep_ledon();
+        }
+    
+        else if ( button0_state==6 )
+        {
+            flower_on();
+        }
+    
+        else if ( button0_state==7 )
+        {
+            flower_off();
+        }
+        
+    }    
+    #endif
+    
+    #if 0 // org // old
+    // 문제
+    // delay 50 ms 화 ( 버튼을 위해 )
+    // 1. Button 0 : led_all_on <-> _off
+    // 2. Button 1 : Shift_left_ledon <->
+    // 3. button 2 : shift_left_keeP_ledon
+    // 4.		   : flower_on <->
     	while(1)
     	{
     		//// 1 button 처리(toggle)
@@ -77,6 +246,7 @@
     			////버튼 한 가지만 사용할 시 : button0_state==1) 
     				led_all_on();
     			else led_all_off();
+    			
     		} 
     		
     		else if ( get_button(BUTTON1, BUTTON1PIN))
@@ -103,8 +273,9 @@
     			else flower_off();
     		}
     	}
-    return 0;
+        return 0;
     }
+    #endif // endif    
     ```
 
   + button.c
@@ -646,7 +817,7 @@
     // 함수 선언은 헤더파일로 빼거나 안 해도 되지만, 여기서 fnd_main으로 자체적 코드 하는 경우도 있으므로 선언 냅뒀음
     //// 여기서 fnd_main구현할 때는 그 함수를 중간에 놓고 앞에 선언도 하지만, 현재 구현 중인 건 main으로 함수 빼줘놨긴함(현재 구현하려하는 게 버튼도 쓰는 건데 button.c,h도 따로 있길래 걍 main으로 옮겨줌)
     void init_fnd(void);
-    void fnd_display(int  state);
+    void fnd_display(int  state, int sec_count);
     
     //extern void init_button(void); // main에서 해주고 옴. 함수 선언은 여러 번 해줘도 되지만, 개인적으로 보기 편하게 주석처리했음
     extern int get_button(int button_num, int button_pin);
@@ -670,7 +841,7 @@
         #endif
     }
     
-    void fnd_display(int state){
+    void fnd_display(int state, int sec_count){
         // 모든 부분을 anode cathode로 나눠서 구현하지 않고 그냥 내 거에 맞춰서 anode용 코드만 쓰기도 했음
         
         // - 회전 세그먼트값 (dp,g~a -> 0xXX[0bXXXXXXXX])
@@ -686,7 +857,7 @@
         
         // v3 : 시계방향도 포함
         int operand_index2[] = {~0,  ~1,~1,~1         ,~1         ,~1   ,~0x09,~0x0D,~0x0F
-        , ~0,  ~2,~6,~14 ,~14,  ~14,~14,~14,~15 }; 
+        , ~0,  ~2,~6,~14 ,~14,  ~14,~14,~14,~15 };  
         int operand_index3[] = {~0,  ~0,~1,~0b00100001,~0b00110001,~0b00111001,~0b00111001   ,~0b00111001   ,~0b00111001
         , ~0,  ~0,~0,~0, ~8,  ~0b00011000,~0b00111000,~0b00111001,~0b00111001};
         
