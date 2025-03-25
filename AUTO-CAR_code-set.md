@@ -20,8 +20,8 @@
 
   + main코드 두 버전의 차이 :  소리를 더 커스터마이징하였는데, 장치를 분해했기에 변경된 소리를 확인해보진 않았음. 따라서 소리 추가 커스터마이징 이전인 버전이자 원하는 기능 및 각종 주행이 정상적으로 되는 걸 많이 확인 완료한 버전을 따로 올림
 
-- main.c : Version 1
-  + 주석은 version2의 main.c에 더 많음. Version 1에서는 주석 좀 더 많이 지움
+- main.c : Version 1 - 몇 곳 소리 끈 버전 & 주석 더 많이 지운 버전
+  > 주석은 version2의 main.c에 더 많음. Version 1에서는 주석 좀 더 많이 지움
   ```C
   #define  F_CPU 16000000UL  // 16MHZ
   
@@ -350,7 +350,7 @@
   }
   ```
   
-- main.c : version 2
+- main.c : version 2 - 몇 곳 소리 커스터마이징 조금 해서 킨 버전 & 주석 좀 더 있음 (Version 1에 비해)
   
   ```C
   #define  F_CPU 16000000UL  // 16MHZ
@@ -2762,8 +2762,6 @@
   #include <avr/io.h>
   #include <util/delay.h>  // _delay_ms _delay_us
   #include <avr/interrupt.h>  // sei()등
-  
-  
   
   #endif /* UART1_H_ */
   ```
